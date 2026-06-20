@@ -21,7 +21,6 @@ All hostnames, account IDs, ARNs, and UUIDs are fictional.
 
 | Document | Audience | Purpose |
 |----------|----------|---------|
-| [BLOG.md](BLOG.md) | Public / Medium | Why replace migrations hurt and what changed |
 | [PROMPTS.md](PROMPTS.md) | DevOps/Linux Admin + AI IDE | **When** to run each prompt; adapt copy per host |
 | [APP-TURNOVER-GUIDANCE.md](APP-TURNOVER-GUIDANCE.md) | App team | **Customizable functional turnover** after platform apply |
 | `hosts/.../var/*.yaml` | Infra | Discovery output → Ansible data |
@@ -33,14 +32,10 @@ All hostnames, account IDs, ARNs, and UUIDs are fictional.
 ```
 server-replace-migration/
 ├── README.md                          ← start here
-├── BLOG.md                            ← Medium article
 ├── PROMPTS.md                         ← AI prompts: intent, when to use, step order
 ├── APP-TURNOVER-GUIDANCE.md           ← customize and share with App team
 ├── LICENSE
-├── diagrams/                          ← PNG diagrams (+ .mmd sources to regenerate)
-│   ├── traditional-vs-structured-flow.png
-│   ├── end-to-end-sequence.png
-│   └── prompt-step-flow.png
+├── .gitignore
 ├── .github/workflows/
 │   └── batch-host01.yml
 └── hosts/batch-host01.example.corp/
@@ -53,70 +48,21 @@ server-replace-migration/
 
 ---
 
-## How to publish on personal GitHub
+## What's in this repo
 
-### 1. Create a new repository
-
-On GitHub (your personal account):
-
-- Name: `server-replace-migration` (or similar)
-- Visibility: **Public**
-- Do **not** initialize with README (this folder has one)
-
-### 2. Copy this folder contents
-
-From your workstation, copy **everything inside** `examples/server-replace-migration/` — not the parent `shs-aws-ansible` repo.
-
-```powershell
-# Example: copy to a staging directory for upload
-$src = "C:\Users\gbhosal\git\shs-aws-ansible\examples\server-replace-migration"
-$dst = "C:\Users\gbhosal\git\server-replace-migration"
-New-Item -ItemType Directory -Force -Path $dst
-Copy-Item -Path "$src\*" -Destination $dst -Recurse -Force
-```
-
-### 3. Initialize and push
-
-```powershell
-cd C:\Users\gbhosal\git\server-replace-migration
-git init
-git add .
-git commit -m "Add server replace migration example (Ansible, provision script, CI/CD)"
-git branch -M main
-git remote add origin https://github.com/gbhosal/server-replace-migration.git
-git push -u origin main
-```
-
-### 4. Link from Medium
-
-In your blog post footer or bio:
-
-```markdown
-Example code: https://github.com/gbhosal/server-replace-migration
-```
-
-**Mermaid diagrams:** Pre-rendered PNGs are in `diagrams/`. Upload them when composing on Medium (see **Appendix: Publishing to Medium** in `BLOG.md`).
-
----
-
-## What to upload (checklist)
-
-| Upload | Purpose |
-|--------|---------|
-| `README.md` | Repo overview + publish instructions |
-| `BLOG.md` | Article source (optional in repo; you may keep only on Medium) |
-| `diagrams/*.png` | Blog and PROMPTS diagrams — upload to Medium |
-| `diagrams/*.mmd` | Mermaid sources to regenerate PNGs |
+| Path | Purpose |
+|------|---------|
+| `README.md` | Repo overview |
+| `.gitignore` | Ignore local secrets and generated migration docs |
 | `PROMPTS.md` | Adaptable AI prompts with intent + when-to-use step table |
 | `APP-TURNOVER-GUIDANCE.md` | Customizable functional turnover template for App team |
+| `LICENSE` | MIT license |
 | `.github/workflows/batch-host01.yml` | CI/CD pattern |
 | `hosts/batch-host01.example.corp/server-migration.yaml` | Main playbook |
 | `hosts/.../var/batch-host01.yaml` | Example vars from discovery |
 | `hosts/.../tasks/*.yml` | Mount, oldroot copy, cleanup |
 | `hosts/.../scripts/provision-target-from-source.sh` | Target provisioning |
 | `hosts/.../helper.sh` | Stub pre-zip script |
-
-**Do not upload:** real company hostnames, account IDs, IP addresses, or credentials from your employer's repos.
 
 ---
 
@@ -152,7 +98,7 @@ Example code: https://github.com/gbhosal/server-replace-migration
 | 14 | App sign-off | APP-TURNOVER-GUIDANCE.md § Sign-off template |
 | 15 | Cleanup oldroot + cutover | `enable_migration_cleanup=true`; decommission source |
 
-Full flow diagram: [PROMPTS.md — Validation timeline](PROMPTS.md#validation-timeline-dont-skip).
+Full workflow: [PROMPTS.md — Validation timeline](PROMPTS.md#validation-timeline-dont-skip).
 
 ---
 
