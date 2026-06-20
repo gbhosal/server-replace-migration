@@ -1,0 +1,123 @@
+- name: batch-host01.example.corp - replace migration setup
+  hosts: 127.0.0.1
+  connection: local
+  become: true
+  vars_files:
+    - "{{ var_file1 }}"
+
+  vars:
+    enable_mounts: true
+    enable_copy_from_oldroot: true
+    oldroot_unmount_after_copy: true
+    enable_migration_cleanup: false
+    enable_prometheus: true
+    enable_prometheus_install: false
+
+  tasks:
+    - name: Set hostname
+      ansible.builtin.hostname:
+        name: "{{ hostname }}"
+        use: systemd
+      when: ansible_os_family == "RedHat"
+
+    - name: Set system timezone
+      ansible.builtin.timezone:
+        name: "{{ timezone }}"
+
+    - name: Ensure crond is enabled and running
+      ansible.builtin.service:
+        name: crond
+        state: started
+        enabled: true
+
+    - name: Install OS packages
+      ansible.builtin.dnf:
+        name: "{{ packages }}"
+        state: present
+
+    - name: Configure SMTP relay in /etc/mail.rc
+      ansible.builtin.lineinfile:
+        path: /etc/mail.rc
+        regexp: '^set smtp='
+        line: 'set smtp={{ smtp_relay }}'
+        state: present
+
+    - name: Configure from address in /etc/mail.rc
+      ansible.builtin.lineinfile:
+        path: /etc/mail.rc
+        regexp: '^set from='
+        line: 'set from="{{ mail_from_address }}"'
+        state: present
+
+    - name: Setup application groups
+      ansible.builtin.group:
+        name: "{{ item.name }}"
+        gid: "{{ item.gid | default(omit) }}"
+        state: present
+      loop: "{{ user_groups }}"
+
+    - name: Setup application users with fixed uid/gid
+      ansible.builtin.user:
+        name: "{{ item.name }}"
+        uid: "{{ item.uid | default(omit) }}"
+        group: "{{ item.groups.split(',')[0] }}"
+        groups: "{{ item.groups }}"
+        home: "{{ item.home_dir }}"
+        shell: "/bin/bash"
+        state: present
+      loop: "{{ users }}"
+
+    - name: Ensure user .ssh directories exist
+      ansible.builtin.file:
+        path: "{{ item.home_dir }}/.ssh"
+        state: directory
+        owner: "{{ item.name }}"
+        group: "{{ item.groups.split(',')[0] }}"
+        mode: '0700'
+      loop: "{{ users }}"
+
+    - name: Configure netgroup access rules
+      ansible.builtin.copy:
+        content: |
+          # Managed by Ansible - Do not edit manually
+          {% for rule in netgroup_rules %}{{ rule }}
+          {% endfor %}
+        dest: /etc/security/access.netgroup.conf
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Configure sudoers drop-in
+      ansible.builtin.copy:
+        content: |
+          # Managed by Ansible - Do not edit manually
+          {% for rule in sudoers_rules %}{{ rule }}
+          {% endfor %}
+        dest: /etc/sudoers.d/ansible
+        owner: root
+        group: root
+        mode: '0440'
+        validate: '/usr/sbin/visudo -cf %s'
+
+    - name: Include mount tasks
+      import_tasks: tasks/mount.yml
+      when: enable_mounts
+
+    - name: Include old root copy tasks
+      import_tasks: tasks/copy_from_oldroot.yml
+      when: enable_copy_from_oldroot
+
+    - name: Include post-migration cleanup tasks
+      import_tasks: tasks/cleanup_migration.yml
+      when: enable_migration_cleanup
+
+  handlers:
+    - name: restart_sshd
+      ansible.builtin.service:
+        name: sshd
+        state: restarted
+
+    - name: restart crond
+      ansible.builtin.service:
+        name: crond
+        state: restarted

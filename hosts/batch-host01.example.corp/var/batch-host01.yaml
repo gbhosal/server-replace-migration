@@ -1,0 +1,47 @@
+hostname: batch-host01.example.corp
+aws_region: us-east-2
+timezone: America/Chicago
+smtp_relay: smtp-relay.example.com
+mail_from_address: "batch-host01@example.com"
+
+# Old source root volume — attach read-only at /mnt/oldroot for one-time copy
+old_source_root_uuid: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+old_root_mount_point: "/mnt/oldroot"
+old_root_fstype: "xfs"
+old_root_mount_opts: "ro,nouuid"
+
+oldroot_ssh_host_keys:
+  - { src: "etc/ssh/ssh_host_rsa_key", dest: "/etc/ssh/ssh_host_rsa_key", mode: "0600" }
+  - { src: "etc/ssh/ssh_host_rsa_key.pub", dest: "/etc/ssh/ssh_host_rsa_key.pub", mode: "0644" }
+  - { src: "etc/ssh/ssh_host_ecdsa_key", dest: "/etc/ssh/ssh_host_ecdsa_key", mode: "0600" }
+  - { src: "etc/ssh/ssh_host_ecdsa_key.pub", dest: "/etc/ssh/ssh_host_ecdsa_key.pub", mode: "0644" }
+
+packages:
+  - ksh
+  - perl
+  - mailx
+  - mariadb105
+  - curl
+  - wget
+  - python3-pip
+
+user_groups:
+  - { name: "appgrp", gid: 605 }
+  - { name: "batchgrp", gid: 610 }
+
+users:
+  - { name: "appadmin", uid: 601, groups: "appgrp", home_dir: "/home/appadmin" }
+  - { name: "batchsvc", uid: 611, groups: "batchgrp", home_dir: "/home/batchsvc" }
+
+all_mounts:
+  - { path: "/appl", src: "UUID=11111111-2222-3333-4444-555555555555", fstype: "xfs", opts: "defaults,noatime", state: "mounted" }
+  - { path: "/data", src: "UUID=66666666-7777-8888-9999-aaaaaaaaaaaa", fstype: "xfs", opts: "defaults", state: "mounted" }
+
+netgroup_rules:
+  - "+ : root : LOCAL"
+  - "+ : @unix-admins : ALL"
+  - "+ : opsuser : ALL"
+  - "- : ALL : ALL"
+
+sudoers_rules:
+  - "opsuser ALL=(ALL) NOPASSWD:ALL"

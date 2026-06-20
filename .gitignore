@@ -1,0 +1,35 @@
+# Dependencies (mermaid-cli via npx)
+node_modules/
+package-lock.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Ansible / local runs
+*.retry
+.ansible/
+*.log
+
+# Secrets — never commit real credentials or keys
+.env
+.env.*
+*.pem
+*.key
+credentials.json
+secrets.yaml
+secrets.yml
+
+# Per-host migration outputs (generate locally; may contain real IPs/hostnames)
+**/MIGRATION-ASSESSMENT.md
+**/BREAKAGE-REPORT.md
+
+# Local diagram scratch (committed PNGs + .mmd sources live in diagrams/)
+diagrams/*.svg
+diagrams/.cache/

@@ -1,0 +1,62 @@
+---
+name: 'batch-host01-replace-migration'
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'main' # Intentionally mismatched with target branch name so it doesn't trigger
+      - 'feat/batch-host01'
+    paths:
+      - 'hosts/batch-host01.example.corp/**'
+      - '.github/workflows/batch-host01.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  batch-host01-check:
+    if: startsWith(github.ref, 'refs/heads/feat/batch-host01')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::123456789012:role/deploy/ansible-apply
+          aws-region: us-east-2
+      - name: Run Ansible via SSM (check mode only)
+        working-directory: ./hosts/batch-host01.example.corp
+        env:
+          SSM_PARAMETER: '{"SourceType":["S3"],"SourceInfo":["{\"path\": \"https://artifacts-123456789012-us-east-2.s3.us-east-2.amazonaws.com/ansible/batch-host01-${{ github.run_id }}.zip\"}"],"InstallDependencies":["False"],"PlaybookFile":["server-migration.yaml"],"Check":["True"],"Verbose":["-v"],"ExtraVariables":["var_file1=var/batch-host01.yaml"]}'
+        run: |
+          sh helper.sh
+          zip -r batch-host01.zip *
+          aws s3 cp batch-host01.zip "s3://artifacts-123456789012-us-east-2/ansible/batch-host01-${{ github.run_id }}.zip"
+          aws ssm send-command \
+            --document-name "AWS-ApplyAnsiblePlaybooks" \
+            --targets '[{"Key":"tag:Name","Values":["batch-host01.example.corp (NEW)"]}]' \
+            --parameters "$SSM_PARAMETER" \
+            --cloud-watch-output-config CloudWatchOutputEnabled=true
+
+  batch-host01-apply:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::123456789012:role/deploy/ansible-apply
+          aws-region: us-east-2
+      - name: Run Ansible via SSM (full apply)
+        working-directory: ./hosts/batch-host01.example.corp
+        env:
+          SSM_PARAMETER: '{"SourceType":["S3"],"SourceInfo":["{\"path\": \"https://artifacts-123456789012-us-east-2.s3.us-east-2.amazonaws.com/ansible/batch-host01-${{ github.run_id }}.zip\"}"],"InstallDependencies":["False"],"PlaybookFile":["server-migration.yaml"],"Check":["False"],"Verbose":["-v"],"ExtraVariables":["var_file1=var/batch-host01.yaml"]}'
+        run: |
+          sh helper.sh
+          zip -r batch-host01.zip *
+          aws s3 cp batch-host01.zip "s3://artifacts-123456789012-us-east-2/ansible/batch-host01-${{ github.run_id }}.zip"
+          aws ssm send-command \
+            --document-name "AWS-ApplyAnsiblePlaybooks" \
+            --targets '[{"Key":"tag:Name","Values":["batch-host01.example.corp (NEW)"]}]' \
+            --parameters "$SSM_PARAMETER" \
+            --cloud-watch-output-config CloudWatchOutputEnabled=true

@@ -1,0 +1,91 @@
+- name: Ensure old root mount point exists
+  ansible.builtin.file:
+    path: "{{ old_root_mount_point }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Mount old source root volume read-only
+  ansible.builtin.mount:
+    path: "{{ old_root_mount_point }}"
+    src: "UUID={{ old_source_root_uuid }}"
+    fstype: "{{ old_root_fstype }}"
+    opts: "{{ old_root_mount_opts }}"
+    state: mounted
+
+- name: Verify old root mount is readable
+  ansible.builtin.stat:
+    path: "{{ old_root_mount_point }}/etc/os-release"
+  register: oldroot_os_release
+
+- name: Fail when old root mount is not available
+  ansible.builtin.fail:
+    msg: >-
+      Old root volume not found at {{ old_root_mount_point }}.
+      Attach source root EBS (UUID {{ old_source_root_uuid }}) and retry.
+  when: not oldroot_os_release.stat.exists
+
+- name: Check app user home directories on old root
+  ansible.builtin.stat:
+    path: "{{ old_root_mount_point }}{{ item.home_dir }}"
+  loop: "{{ users }}"
+  register: oldroot_home_stat
+
+- name: Copy app user home directories from old root
+  ansible.builtin.copy:
+    src: "{{ old_root_mount_point }}{{ item.item.home_dir }}/"
+    dest: "{{ item.item.home_dir }}/"
+    remote_src: true
+    owner: "{{ item.item.name }}"
+    group: "{{ item.item.groups.split(',')[0] }}"
+    mode: preserve
+    directory_mode: "0700"
+  loop: "{{ oldroot_home_stat.results }}"
+  when:
+    - item.stat is defined
+    - item.stat.exists
+    - item.stat.isdir
+
+- name: Check SSH host keys on old root
+  ansible.builtin.stat:
+    path: "{{ old_root_mount_point }}/{{ item.src }}"
+  loop: "{{ oldroot_ssh_host_keys }}"
+  register: oldroot_ssh_host_key_stat
+
+- name: Copy SSH host keys from old root
+  ansible.builtin.copy:
+    src: "{{ old_root_mount_point }}/{{ item.item.src }}"
+    dest: "{{ item.item.dest }}"
+    remote_src: true
+    owner: root
+    group: root
+    mode: "{{ item.item.mode }}"
+  loop: "{{ oldroot_ssh_host_key_stat.results }}"
+  when: item.stat.exists
+  notify: restart_sshd
+
+- name: Find crontab files on old root
+  ansible.builtin.find:
+    paths: "{{ old_root_mount_point }}/var/spool/cron"
+    file_type: file
+    hidden: true
+  register: oldroot_crontab_files
+  failed_when: false
+
+- name: Copy user crontabs from old root
+  ansible.builtin.copy:
+    src: "{{ item.path }}"
+    dest: "/var/spool/cron/{{ item.path | basename }}"
+    remote_src: true
+    owner: root
+    group: root
+    mode: '0600'
+  loop: "{{ oldroot_crontab_files.files | default([]) }}"
+  notify: restart crond
+
+- name: Unmount old root volume after copy
+  ansible.builtin.mount:
+    path: "{{ old_root_mount_point }}"
+    state: unmounted
+  when: oldroot_unmount_after_copy | bool

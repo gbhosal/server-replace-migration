@@ -1,0 +1,16 @@
+- name: Unmount old source root volume if still mounted
+  ansible.builtin.mount:
+    path: "{{ old_root_mount_point }}"
+    state: unmounted
+
+- name: Remove old source root from fstab
+  ansible.builtin.mount:
+    path: "{{ old_root_mount_point }}"
+    src: "UUID={{ old_source_root_uuid }}"
+    fstype: "{{ old_root_fstype }}"
+    state: absent
+
+- name: Remove old root mount point directory
+  ansible.builtin.file:
+    path: "{{ old_root_mount_point }}"
+    state: absent

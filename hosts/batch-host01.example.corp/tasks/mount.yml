@@ -1,0 +1,32 @@
+- name: Activate LVM volume groups if present
+  ansible.builtin.command: vgchange -ay
+  register: vgchange_result
+  changed_when: false
+  failed_when: false
+
+- name: Add Ansible header to /etc/fstab
+  ansible.builtin.lineinfile:
+    path: /etc/fstab
+    line: "# Managed by Ansible - Do not edit manually"
+    insertbefore: BOF
+    state: present
+
+- name: Create mount point directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    mode: "0755"
+    owner: root
+    group: root
+  loop: "{{ all_mounts }}"
+
+- name: Mount application volumes by UUID
+  ansible.builtin.mount:
+    path: "{{ item.path }}"
+    src: "{{ item.src }}"
+    fstype: "{{ item.fstype }}"
+    opts: "{{ item.opts }}"
+    state: "{{ item.state }}"
+    dump: 0
+    passno: 0
+  loop: "{{ all_mounts }}"
